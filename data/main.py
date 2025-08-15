@@ -2,6 +2,7 @@ import icenlight
 
 import pytorch_lightning as pl
 import torch
+import torchvision
 from torchvision.datasets import MNIST
 import dataclasses
 
@@ -19,18 +20,23 @@ class DataModule(pl.LightningDataModule):
 		self.test_config = test_config
 
 		self.save_hyperparameters()
+		self.prepare_data_per_node = False
 
 	def prepare_data(self):
 		MNIST(self.assets_dir, train=True, download=True)
 		MNIST(self.assets_dir, train=False, download=True)
 
 	def setup(self, stage: str) -> None:
+		transform = torchvision.transforms.Compose([
+			torchvision.transforms.ToTensor(),
+		])
+
 		if stage == "fit":
-			train_ds = MNIST(self.assets_dir, train=True)
-			self.train_ds, self.val_ds = icenlight.RandomSplit(train_ds, [0.9, 0.1], seed=42)
+			train_ds = MNIST(self.assets_dir, train=True, transform=transform)
+			self.train_ds, self.val_ds = icenlight.RandomSplit(train_ds, [0.9, 0.1], seed=None)
 
 		if stage == "test":
-			self.test_ds = MNIST(self.assets_dir, train=False)
+			self.test_ds = MNIST(self.assets_dir, train=False, transform=transform)
 
 		if stage == "predict":
 			pass
@@ -39,10 +45,10 @@ class DataModule(pl.LightningDataModule):
 		return torch.utils.data.DataLoader(self.train_ds, batch_size=self.train_config.batch_size, shuffle=True, drop_last=self.train_config.drop_last, num_workers=self.train_config.num_worker)
 	
 	def val_dataloader(self):
-		return torch.utils.data.DataLoader(self.val_ds, batch_size=self.validation_config.batch_size, shuffle=True, drop_last=self.validation_config.drop_last, num_workers=self.validation_config.num_worker)
+		return torch.utils.data.DataLoader(self.val_ds, batch_size=self.validation_config.batch_size, shuffle=False, drop_last=self.validation_config.drop_last, num_workers=self.validation_config.num_worker)
 	
 	def test_dataloader(self):
-		return torch.utils.data.DataLoader(self.test_ds, batch_size=self.test_config.batch_size, shuffle=True, drop_last=self.test_config.drop_last, num_workers=self.test_config.num_worker)
+		return torch.utils.data.DataLoader(self.test_ds, batch_size=self.test_config.batch_size, shuffle=False, drop_last=self.test_config.drop_last, num_workers=self.test_config.num_worker)
 	
 	def teardown(self, stage: str):
 		if stage == "fit":

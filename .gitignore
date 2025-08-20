@@ -2,3 +2,7 @@
 /train.yaml
 /data/assets
 /lightning_logs
+/data/checkpoints
+/data/dataset
+/train
+/unsloth_compiled_cache
